@@ -1,0 +1,4 @@
+ Add new record in DB.
+ exec(messages += Message("Dave","What if I say 'Pretty please'?"))
+ Get All messages sender by name - Dave.
+ exec(messages.filter(_.sender === "Dave").result)
