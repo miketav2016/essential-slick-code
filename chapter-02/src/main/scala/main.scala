@@ -3,7 +3,6 @@ import slick.jdbc.H2Profile.api._
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 object Example extends App {
 
@@ -35,6 +34,7 @@ object Example extends App {
   }
 
   // Base query for querying the messages table:
+  // like:  select * from message
   lazy val messages = TableQuery[MessageTable]
 
   // An example query that selects a subset of messages:
@@ -44,7 +44,7 @@ object Example extends App {
   val db = Database.forConfig("chapter02")
 
   // Helper method for running a query in this example file:
-  def exec[T](program: DBIO[T]): T = Await.result(db.run(program), 2.seconds)
+  def exec[T](program: DBIO[T]): T = Await.result(db.run(program), 5.seconds)
 
   try {
 
@@ -80,3 +80,4 @@ object Example extends App {
 
   } finally db.close
 }
+case class TextOnly(id: Long, content: String)
