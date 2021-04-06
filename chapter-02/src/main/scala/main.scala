@@ -70,6 +70,34 @@ object Example extends App {
       }
     )
 
+    //do exercises
+    println("Count the Messages")
+    println(exec(messages.size.result))
+    println("Selecting a Message")
+    println(exec(messages.filter(_.id === 999L).result))
+    val res = for {
+      message <- messages if message.id === 1L
+    } yield message
+    exec(res.result)
+    println("One Liners")
+    println(exec(messages.filter(_.id === 1L).result))
+    println("Selecting Columns")
+    exec(messages.map(_.content).result).foreach(println)
+    println("First Result")
+    println(exec(messages.filter(_.sender === "HAL").result.head))
+    println(exec(messages.filter(_.sender === "HAL").result.headOption))
+    println(exec(messages.filter(_.sender === "“Alice”").result.headOption))
+    println("Then the Rest")
+    println(exec(messages.filter(_.sender === "HAL").drop(1).take(5).result.headOption))
+    println(exec(messages.filter(_.sender === "HAL").drop(10).take(10).result.headOption))
+    println("The Start of Something")
+    println(exec(messages.filter(_.content.startsWith("Open")).result.headOption))
+    println("Liking")
+    println(exec(messages.filter(_.content.like("%do%")).result))
+    println(exec(messages.filter(_.content.toLowerCase.like("%do%")).result))
+    println("Client-Side or Server-Side?")
+    exec(messages.map(_.content.toString ++ "!").result).foreach(println)
+
     // filterOpt
     def query(name: Option[String]) =
       messages.filterOpt(name)( (row, value) => row.sender === value )
