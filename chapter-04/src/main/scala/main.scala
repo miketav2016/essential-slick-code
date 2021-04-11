@@ -1,7 +1,8 @@
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 import slick.jdbc.H2Profile.api._
+
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.util.Try
 
 object Example extends App {
@@ -105,5 +106,78 @@ object Example extends App {
     printCurrentDatabaseState
 
   } finally db.close
+
+  //Exercises
+  println("And Then what?")
+  val drop: DBIO[Unit] = messages.schema.drop
+  val create: DBIO[Unit] = messages.schema.create
+  val populateM: DBIO[Option[Int]] = messages ++= testData
+  val myAndThen: DBIOAction[Option[Int], NoStream, Effect.All] = drop andThen create andThen populateM
+//  exec(myAndThen)
+  val mySeq: DBIOAction[Unit, NoStream, Effect.All] = DBIO.seq(drop, create, populateM)
+//  exec(mySeq)
+  println("First!")
+  def prefixFirst(m: Message): DBIO[Int] = {
+    messages.size.result.flatMap {
+      case 0 =>
+        (messages += Message(m.sender, "FIRST!")) andThen (messages += m)
+      case _ =>
+        messages += m
+    }
+  }
+  val testM: Message = Message("Mike", "Hi Slick", 99L)
+//  exec(prefixFirst(Message("Mike", "Hi Slick", 99L)))
+  println("There Can be Only One")
+  val happy = messages.filter(_.content like "%sorry%").result
+  val boom = messages.filter(_.content like "%I%").result
+
+  def onlyOne[T](ms: DBIO[Seq[T]]): DBIO[T] = {
+    ms.flatMap {
+      case m +: Nil =>
+        DBIO.successful(m)
+      case _ =>
+        DBIO.failed(new RuntimeException(s"Expected 1 result, not more"))
+    }
+  }
+  println("Let’s be Reasonable")
+  def exactlyOne[T](action: DBIO[Seq[T]]): DBIO[Try[T]] = onlyOne(action).asTry
+//  exec(exactlyOne(happy))
+//  exec(exactlyOne(boom))
+  println("Filtering")
+  def myFilter[T](action: DBIO[T])(p: T => Boolean)(alternative: => T) = {
+    action.map {
+      case some if p(some) => some
+      case _ => alternative
+    }
+  }
+
+  myFilter(messages.size.result)( _ > 100)(100)
+  println("Unfolding")
+
+  /*case class Room(name: String, connectsTo: String)
+  class FloorPlan(tag: Tag) extends Table[Room](tag, "floorplan") {
+    def name = column[String]("name")
+    def connectsTo = column[String]("next")
+    def * = (name, connectsTo).mapTo[Room]
+  }
+  lazy val floorplan = TableQuery[FloorPlan]
+  exec {
+    (floorplan.schema.create) >>
+        (floorplan += Room("Outside", "Podbay Door")) >>
+        (floorplan += Room("Podbay Door", "Podbay")) >>
+        (floorplan += Room("Podbay", "Galley")) >>
+        (floorplan += Room("Galley", "Computer")) >>
+        (floorplan += Room("Computer", "Engine Room"))
+  }
+   */
+  def unfold(z: String,
+             f: String => DBIO[Option[String]],
+             acc: Seq[String] = Seq.empty
+            ): DBIO[Seq[String]] =
+    f(z).flatMap {
+      case None => DBIO.successful(acc :+ z)
+      case Some(r) => unfold(r, f, acc :+ z)
+    }
+
 
 }
