@@ -49,7 +49,20 @@ object NestedCaseClassExampleApp extends App {
       def petName      = column[String]("pet")
       def partnerName  = column[String]("partner")
 
-      def * = ???
+      type Row = (String, String, String, String, String, Long)
+      // One function from Row to User
+      def pack(row: Row): User = User(
+        EmailContact(row._1, row._2),
+        Address(row._3, row._4, row._5),
+        row._6
+      )
+      // Another method from User to Row:
+      def unpack(user: User): Option[Row] = Some(
+        (user.contact.name, user.contact.email, user.address.street,
+            user.address.city, user.address.country, user.id)
+      )
+
+      def * =  (name, email, street, city, country, id).<>(pack, unpack)
     }
 
     lazy val users = TableQuery[UserTable]
