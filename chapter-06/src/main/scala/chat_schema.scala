@@ -1,15 +1,10 @@
-import java.sql.Timestamp
-
-import slick.driver.JdbcDriver
-import slick.lifted.MappedTo
-
-import scala.concurrent.Await
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-import slick.jdbc.JdbcProfile
-
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone._
+import slick.jdbc.JdbcProfile
+import slick.lifted.MappedTo
+
+import java.sql.Timestamp
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object ChatSchema {
 
@@ -137,7 +132,53 @@ object ChatSchema {
       program
 
     }
+      //1 Name of the Sender
+      def request1 = {
+        val monadicJoin1: Query[(MessageTable, UserTable), (Message, User), Seq] = for {
+          msg <- messages
+          usr <- users if msg.senderId === usr.id
+        } yield (msg, usr)
+
+        val monadicJoin2 = for {
+          msg <- messages
+          usr <- users if msg.senderId === usr.id
+        } yield (msg.content, usr.name)
+        val monadicJoin3 = for {
+          msg <- messages
+          usr <- users if msg.senderId === usr.id
+        } yield (msg.content, usr.name)
+        monadicJoin3.sortBy(_._2)
+
+        val applicativeJoin = messages join users on (_.senderId === _.id)
+      }
+
+    //2 Messages of the Sender
+    def findByName(name: String): Query[Rep[Message], Message, Seq] = {
+      (users.filter(_.name === name).join(messages) on (_.id === _.senderId))
+          .map { case (_, m) => m }
+    }
+    //3 Having Many Messages
+    val msgsPerUser =
+      messages.join(users).on(_.senderId === _.id).
+          groupBy { case (msg, user) => user.name }.
+          map { case (name, group) => name -> group.length }
+
+    val msgsPerUserMod =
+      messages.join(users).on(_.senderId === _.id).
+          groupBy { case (msg, user) => user.name }.
+          map { case (name, group) => name -> group.length }.
+          filter{case (n,c) => c > 2}
+
+    //4 Collecঞng Results
+    def userMessages: DBIO[Map[User, Seq[Message]]] = {
+      users.join(messages).on(_.id === _.senderId).result.
+          map { rows =>
+            rows.groupBy { case (u, _) => u }.
+                mapValues(values => values.map { case (_, msg) => msg })
+          }
+    }
   }
 
   case class Schema(val profile: JdbcProfile) extends Tables with Profile
+
 }
